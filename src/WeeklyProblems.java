@@ -1,71 +1,83 @@
 import java.util.*;
 
-class Event {
-    String url;
-    String userId;
-    String source;
+class TokenBucket {
+    private int maxTokens;
+    private double tokens;
+    private double refillRate;
+    private long lastRefillTime;
 
-    Event(String url, String userId, String source) {
-        this.url = url;
-        this.userId = userId;
-        this.source = source;
+    public TokenBucket(int maxTokens, double refillRate) {
+        this.maxTokens = maxTokens;
+        this.tokens = maxTokens;
+        this.refillRate = refillRate;
+        this.lastRefillTime = System.currentTimeMillis();
+    }
+
+    private void refill() {
+        long now = System.currentTimeMillis();
+        double tokensToAdd = (now - lastRefillTime) / 1000.0 * refillRate;
+        tokens = Math.min(maxTokens, tokens + tokensToAdd);
+        lastRefillTime = now;
+    }
+
+    public synchronized boolean allowRequest() {
+        refill();
+        if (tokens >= 1) {
+            tokens -= 1;
+            return true;
+        }
+        return false;
+    }
+
+    public synchronized int getRemainingTokens() {
+        refill();
+        return (int) tokens;
+    }
+
+    public synchronized long getRetryAfter() {
+        refill();
+        if (tokens >= 1) return 0;
+        return (long) ((1 - tokens) / refillRate);
     }
 }
 
-class AnalyticsService {
-    private HashMap<String, Integer> pageViews = new HashMap<>();
-    private HashMap<String, Set<String>> uniqueVisitors = new HashMap<>();
-    private HashMap<String, Integer> sourceCount = new HashMap<>();
+class RateLimiter {
+    private HashMap<String, TokenBucket> clients = new HashMap<>();
+    private int maxRequests = 1000;
+    private double refillRate = 1000.0 / 3600;
 
-    public synchronized void processEvent(Event e) {
-        pageViews.put(e.url, pageViews.getOrDefault(e.url, 0) + 1);
+    public synchronized String checkRateLimit(String clientId) {
+        clients.putIfAbsent(clientId, new TokenBucket(maxRequests, refillRate));
+        TokenBucket bucket = clients.get(clientId);
 
-        uniqueVisitors.putIfAbsent(e.url, new HashSet<>());
-        uniqueVisitors.get(e.url).add(e.userId);
-
-        sourceCount.put(e.source, sourceCount.getOrDefault(e.source, 0) + 1);
+        if (bucket.allowRequest()) {
+            return "Allowed (" + bucket.getRemainingTokens() + " remaining)";
+        } else {
+            return "Denied (retry after " + bucket.getRetryAfter() + "s)";
+        }
     }
 
-    public void getDashboard() {
-        PriorityQueue<Map.Entry<String, Integer>> pq =
-                new PriorityQueue<>((a, b) -> b.getValue() - a.getValue());
+    public synchronized String getRateLimitStatus(String clientId) {
+        clients.putIfAbsent(clientId, new TokenBucket(maxRequests, refillRate));
+        TokenBucket bucket = clients.get(clientId);
 
-        pq.addAll(pageViews.entrySet());
+        int remaining = bucket.getRemainingTokens();
+        int used = maxRequests - remaining;
 
-        System.out.println("Top Pages:");
-        int k = 10;
-        int rank = 1;
-
-        while (!pq.isEmpty() && k-- > 0) {
-            Map.Entry<String, Integer> entry = pq.poll();
-            String url = entry.getKey();
-            int views = entry.getValue();
-            int unique = uniqueVisitors.get(url).size();
-
-            System.out.println(rank++ + ". " + url + " - " + views + " views (" + unique + " unique)");
-        }
-
-        System.out.println("\nTraffic Sources:");
-        int total = sourceCount.values().stream().mapToInt(i -> i).sum();
-
-        for (String src : sourceCount.keySet()) {
-            int count = sourceCount.get(src);
-            double percent = (count * 100.0) / total;
-            System.out.println(src + ": " + String.format("%.2f", percent) + "%");
-        }
+        return "{used: " + used + ", limit: " + maxRequests + "}";
     }
 }
 
 public class WeeklyProblems {
-    public static void main(String[] args) throws Exception {
-        AnalyticsService service = new AnalyticsService();
+    public static void main(String[] args) {
+        RateLimiter limiter = new RateLimiter();
 
-        service.processEvent(new Event("/article/breaking-news", "user1", "google"));
-        service.processEvent(new Event("/article/breaking-news", "user2", "facebook"));
-        service.processEvent(new Event("/sports/championship", "user3", "google"));
-        service.processEvent(new Event("/sports/championship", "user1", "direct"));
-        service.processEvent(new Event("/article/breaking-news", "user1", "google"));
+        String client = "abc123";
 
-        service.getDashboard();
+        for (int i = 0; i < 5; i++) {
+            System.out.println(limiter.checkRateLimit(client));
+        }
+
+        System.out.println(limiter.getRateLimitStatus(client));
     }
 }
