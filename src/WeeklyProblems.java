@@ -1,58 +1,51 @@
 import java.util.*;
 
-class UsernameService {
-    private HashMap<String, Integer> users = new HashMap<>();
-    private HashMap<String, Integer> attempts = new HashMap<>();
+class InventoryService {
+    private HashMap<String, Integer> stock = new HashMap<>();
+    private HashMap<String, Queue<Integer>> waitingList = new HashMap<>();
 
-    public void addUser(String username, int userId) {
-        users.put(username, userId);
+    public synchronized void addProduct(String productId, int quantity) {
+        stock.put(productId, quantity);
+        waitingList.put(productId, new LinkedList<>());
     }
 
-    public boolean checkAvailability(String username) {
-        attempts.put(username, attempts.getOrDefault(username, 0) + 1);
-        return !users.containsKey(username);
+    public synchronized int checkStock(String productId) {
+        return stock.getOrDefault(productId, 0);
     }
 
-    public List<String> suggestAlternatives(String username) {
-        List<String> res = new ArrayList<>();
-        for (int i = 1; i <= 5; i++) {
-            String s = username + i;
-            if (!users.containsKey(s)) res.add(s);
+    public synchronized String purchaseItem(String productId, int userId) {
+        int available = stock.getOrDefault(productId, 0);
+
+        if (available > 0) {
+            stock.put(productId, available - 1);
+            return "Success, " + (available - 1) + " units remaining";
+        } else {
+            Queue<Integer> queue = waitingList.get(productId);
+            queue.add(userId);
+            return "Added to waiting list, position #" + queue.size();
         }
-        String mod = username.replace("_", ".");
-        if (!users.containsKey(mod)) res.add(mod);
-        return res;
     }
 
-    public String getMostAttempted() {
-        String ans = "";
-        int max = 0;
-        for (String key : attempts.keySet()) {
-            if (attempts.get(key) > max) {
-                max = attempts.get(key);
-                ans = key;
-            }
-        }
-        return ans;
+    public synchronized Queue<Integer> getWaitingList(String productId) {
+        return waitingList.get(productId);
     }
 }
 
 public class WeeklyProblems {
     public static void main(String[] args) {
-        UsernameService service = new UsernameService();
+        InventoryService service = new InventoryService();
 
-        service.addUser("john_doe", 1);
-        service.addUser("admin", 2);
+        service.addProduct("IPHONE15_256GB", 5);
 
-        System.out.println(service.checkAvailability("john_doe"));
-        System.out.println(service.checkAvailability("jane_smith"));
+        System.out.println(service.checkStock("IPHONE15_256GB"));
 
-        System.out.println(service.suggestAlternatives("john_doe"));
+        System.out.println(service.purchaseItem("IPHONE15_256GB", 12345));
+        System.out.println(service.purchaseItem("IPHONE15_256GB", 67890));
+        System.out.println(service.purchaseItem("IPHONE15_256GB", 11111));
+        System.out.println(service.purchaseItem("IPHONE15_256GB", 22222));
+        System.out.println(service.purchaseItem("IPHONE15_256GB", 33333));
 
-        service.checkAvailability("admin");
-        service.checkAvailability("admin");
-        service.checkAvailability("admin");
-
-        System.out.println(service.getMostAttempted());
+        System.out.println(service.purchaseItem("IPHONE15_256GB", 99999));
+        System.out.println(service.purchaseItem("IPHONE15_256GB", 88888));
     }
 }
