@@ -1,74 +1,90 @@
 import java.util.*;
 
-class TrieNode {
-    Map<Character, TrieNode> children = new HashMap<>();
-    boolean isEnd = false;
+class ParkingSpot {
+    String plate;
+    long entryTime;
+    boolean occupied;
+
+    ParkingSpot() {
+        this.plate = null;
+        this.occupied = false;
+    }
 }
 
-class AutocompleteSystem {
-    private TrieNode root = new TrieNode();
-    private HashMap<String, Integer> frequency = new HashMap<>();
+class ParkingLot {
+    private ParkingSpot[] table;
+    private int size;
+    private int count = 0;
+    private int totalProbes = 0;
 
-    public void insert(String query) {
-        TrieNode node = root;
-        for (char c : query.toCharArray()) {
-            node.children.putIfAbsent(c, new TrieNode());
-            node = node.children.get(c);
-        }
-        node.isEnd = true;
-        frequency.put(query, frequency.getOrDefault(query, 0) + 1);
+    public ParkingLot(int size) {
+        this.size = size;
+        table = new ParkingSpot[size];
+        for (int i = 0; i < size; i++) table[i] = new ParkingSpot();
     }
 
-    private void dfs(TrieNode node, String prefix, List<String> results) {
-        if (node.isEnd) results.add(prefix);
-        for (char c : node.children.keySet()) {
-            dfs(node.children.get(c), prefix + c, results);
-        }
+    private int hash(String plate) {
+        return Math.abs(plate.hashCode()) % size;
     }
 
-    public List<String> search(String prefix) {
-        TrieNode node = root;
+    public String parkVehicle(String plate) {
+        int index = hash(plate);
+        int probes = 0;
 
-        for (char c : prefix.toCharArray()) {
-            if (!node.children.containsKey(c)) return new ArrayList<>();
-            node = node.children.get(c);
+        while (table[index].occupied) {
+            index = (index + 1) % size;
+            probes++;
         }
 
-        List<String> all = new ArrayList<>();
-        dfs(node, prefix, all);
+        table[index].plate = plate;
+        table[index].entryTime = System.currentTimeMillis();
+        table[index].occupied = true;
 
-        PriorityQueue<String> pq = new PriorityQueue<>(
-                (a, b) -> frequency.get(a) - frequency.get(b)
-        );
+        count++;
+        totalProbes += probes;
 
-        for (String s : all) {
-            pq.offer(s);
-            if (pq.size() > 10) pq.poll();
+        return "Assigned spot #" + index + " (" + probes + " probes)";
+    }
+
+    public String exitVehicle(String plate) {
+        int index = hash(plate);
+
+        while (table[index].occupied) {
+            if (plate.equals(table[index].plate)) {
+                long duration = System.currentTimeMillis() - table[index].entryTime;
+                table[index].occupied = false;
+                count--;
+
+                double hours = duration / (1000.0 * 60 * 60);
+                double fee = hours * 5;
+
+                return "Freed spot #" + index + ", Duration: " + String.format("%.2f", hours) + "h, Fee: $" + String.format("%.2f", fee);
+            }
+            index = (index + 1) % size;
         }
 
-        List<String> result = new ArrayList<>();
-        while (!pq.isEmpty()) result.add(pq.poll());
-        Collections.reverse(result);
+        return "Vehicle not found";
+    }
 
-        return result;
+    public void getStatistics() {
+        double occupancy = (count * 100.0) / size;
+        double avgProbes = count == 0 ? 0 : (totalProbes * 1.0 / count);
+
+        System.out.println("Occupancy: " + String.format("%.2f", occupancy) + "%");
+        System.out.println("Avg Probes: " + String.format("%.2f", avgProbes));
     }
 }
 
 public class WeeklyProblems {
     public static void main(String[] args) {
-        AutocompleteSystem system = new AutocompleteSystem();
+        ParkingLot lot = new ParkingLot(10);
 
-        system.insert("java tutorial");
-        system.insert("javascript");
-        system.insert("java download");
-        system.insert("java tutorial");
-        system.insert("java tutorial");
+        System.out.println(lot.parkVehicle("ABC-1234"));
+        System.out.println(lot.parkVehicle("ABC-1235"));
+        System.out.println(lot.parkVehicle("XYZ-9999"));
 
-        List<String> suggestions = system.search("jav");
+        System.out.println(lot.exitVehicle("ABC-1234"));
 
-        int rank = 1;
-        for (String s : suggestions) {
-            System.out.println(rank++ + ". " + s);
-        }
+        lot.getStatistics();
     }
 }
