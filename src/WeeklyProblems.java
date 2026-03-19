@@ -1,63 +1,71 @@
 import java.util.*;
 
-class PlagiarismService {
-    private HashMap<String, Set<String>> index = new HashMap<>();
-    private int n = 5;
+class Event {
+    String url;
+    String userId;
+    String source;
 
-    private List<String> getNGrams(String text) {
-        String[] words = text.split("\\s+");
-        List<String> grams = new ArrayList<>();
-        for (int i = 0; i <= words.length - n; i++) {
-            StringBuilder sb = new StringBuilder();
-            for (int j = 0; j < n; j++) {
-                sb.append(words[i + j]).append(" ");
-            }
-            grams.add(sb.toString().trim());
-        }
-        return grams;
+    Event(String url, String userId, String source) {
+        this.url = url;
+        this.userId = userId;
+        this.source = source;
+    }
+}
+
+class AnalyticsService {
+    private HashMap<String, Integer> pageViews = new HashMap<>();
+    private HashMap<String, Set<String>> uniqueVisitors = new HashMap<>();
+    private HashMap<String, Integer> sourceCount = new HashMap<>();
+
+    public synchronized void processEvent(Event e) {
+        pageViews.put(e.url, pageViews.getOrDefault(e.url, 0) + 1);
+
+        uniqueVisitors.putIfAbsent(e.url, new HashSet<>());
+        uniqueVisitors.get(e.url).add(e.userId);
+
+        sourceCount.put(e.source, sourceCount.getOrDefault(e.source, 0) + 1);
     }
 
-    public void addDocument(String docId, String content) {
-        List<String> grams = getNGrams(content);
-        for (String gram : grams) {
-            index.putIfAbsent(gram, new HashSet<>());
-            index.get(gram).add(docId);
+    public void getDashboard() {
+        PriorityQueue<Map.Entry<String, Integer>> pq =
+                new PriorityQueue<>((a, b) -> b.getValue() - a.getValue());
+
+        pq.addAll(pageViews.entrySet());
+
+        System.out.println("Top Pages:");
+        int k = 10;
+        int rank = 1;
+
+        while (!pq.isEmpty() && k-- > 0) {
+            Map.Entry<String, Integer> entry = pq.poll();
+            String url = entry.getKey();
+            int views = entry.getValue();
+            int unique = uniqueVisitors.get(url).size();
+
+            System.out.println(rank++ + ". " + url + " - " + views + " views (" + unique + " unique)");
         }
-    }
 
-    public void analyzeDocument(String docId, String content) {
-        List<String> grams = getNGrams(content);
-        HashMap<String, Integer> matchCount = new HashMap<>();
+        System.out.println("\nTraffic Sources:");
+        int total = sourceCount.values().stream().mapToInt(i -> i).sum();
 
-        for (String gram : grams) {
-            if (index.containsKey(gram)) {
-                for (String otherDoc : index.get(gram)) {
-                    matchCount.put(otherDoc, matchCount.getOrDefault(otherDoc, 0) + 1);
-                }
-            }
-        }
-
-        System.out.println("Total n-grams: " + grams.size());
-
-        for (String doc : matchCount.keySet()) {
-            int matches = matchCount.get(doc);
-            double similarity = (matches * 100.0) / grams.size();
-            System.out.println("Match with " + doc + ": " + matches + " grams, Similarity: " + similarity + "%");
+        for (String src : sourceCount.keySet()) {
+            int count = sourceCount.get(src);
+            double percent = (count * 100.0) / total;
+            System.out.println(src + ": " + String.format("%.2f", percent) + "%");
         }
     }
 }
 
 public class WeeklyProblems {
-    public static void main(String[] args) {
-        PlagiarismService service = new PlagiarismService();
+    public static void main(String[] args) throws Exception {
+        AnalyticsService service = new AnalyticsService();
 
-        String doc1 = "this is a simple test document for plagiarism detection system";
-        String doc2 = "this is a simple test document for checking plagiarism detection";
-        String doc3 = "completely different content with no matching words here";
+        service.processEvent(new Event("/article/breaking-news", "user1", "google"));
+        service.processEvent(new Event("/article/breaking-news", "user2", "facebook"));
+        service.processEvent(new Event("/sports/championship", "user3", "google"));
+        service.processEvent(new Event("/sports/championship", "user1", "direct"));
+        service.processEvent(new Event("/article/breaking-news", "user1", "google"));
 
-        service.addDocument("doc1", doc1);
-        service.addDocument("doc2", doc2);
-
-        service.analyzeDocument("doc3", doc3);
+        service.getDashboard();
     }
 }
