@@ -1,71 +1,63 @@
 import java.util.*;
 
-class DNSEntry {
-    String ip;
-    long expiry;
+class PlagiarismService {
+    private HashMap<String, Set<String>> index = new HashMap<>();
+    private int n = 5;
 
-    DNSEntry(String ip, long ttl) {
-        this.ip = ip;
-        this.expiry = System.currentTimeMillis() + ttl;
-    }
-}
-
-class DNSCache {
-    private int capacity;
-    private LinkedHashMap<String, DNSEntry> cache;
-    private int hits = 0;
-    private int misses = 0;
-
-    public DNSCache(int capacity) {
-        this.capacity = capacity;
-        this.cache = new LinkedHashMap<String, DNSEntry>(capacity, 0.75f, true) {
-            protected boolean removeEldestEntry(Map.Entry<String, DNSEntry> eldest) {
-                return size() > DNSCache.this.capacity;
+    private List<String> getNGrams(String text) {
+        String[] words = text.split("\\s+");
+        List<String> grams = new ArrayList<>();
+        for (int i = 0; i <= words.length - n; i++) {
+            StringBuilder sb = new StringBuilder();
+            for (int j = 0; j < n; j++) {
+                sb.append(words[i + j]).append(" ");
             }
-        };
+            grams.add(sb.toString().trim());
+        }
+        return grams;
     }
 
-    public synchronized String resolve(String domain) {
-        long now = System.currentTimeMillis();
+    public void addDocument(String docId, String content) {
+        List<String> grams = getNGrams(content);
+        for (String gram : grams) {
+            index.putIfAbsent(gram, new HashSet<>());
+            index.get(gram).add(docId);
+        }
+    }
 
-        if (cache.containsKey(domain)) {
-            DNSEntry entry = cache.get(domain);
-            if (entry.expiry > now) {
-                hits++;
-                return "Cache HIT: " + entry.ip;
-            } else {
-                cache.remove(domain);
+    public void analyzeDocument(String docId, String content) {
+        List<String> grams = getNGrams(content);
+        HashMap<String, Integer> matchCount = new HashMap<>();
+
+        for (String gram : grams) {
+            if (index.containsKey(gram)) {
+                for (String otherDoc : index.get(gram)) {
+                    matchCount.put(otherDoc, matchCount.getOrDefault(otherDoc, 0) + 1);
+                }
             }
         }
 
-        misses++;
-        String ip = fetchFromUpstream(domain);
-        cache.put(domain, new DNSEntry(ip, 5000));
-        return "Cache MISS: " + ip;
-    }
+        System.out.println("Total n-grams: " + grams.size());
 
-    private String fetchFromUpstream(String domain) {
-        return "172." + (int)(Math.random()*255) + "." + (int)(Math.random()*255) + "." + (int)(Math.random()*255);
-    }
-
-    public void getStats() {
-        int total = hits + misses;
-        double rate = total == 0 ? 0 : (hits * 100.0 / total);
-        System.out.println("Hit Rate: " + rate + "%");
+        for (String doc : matchCount.keySet()) {
+            int matches = matchCount.get(doc);
+            double similarity = (matches * 100.0) / grams.size();
+            System.out.println("Match with " + doc + ": " + matches + " grams, Similarity: " + similarity + "%");
+        }
     }
 }
 
 public class WeeklyProblems {
-    public static void main(String[] args) throws Exception {
-        DNSCache cache = new DNSCache(3);
+    public static void main(String[] args) {
+        PlagiarismService service = new PlagiarismService();
 
-        System.out.println(cache.resolve("google.com"));
-        System.out.println(cache.resolve("google.com"));
+        String doc1 = "this is a simple test document for plagiarism detection system";
+        String doc2 = "this is a simple test document for checking plagiarism detection";
+        String doc3 = "completely different content with no matching words here";
 
-        Thread.sleep(6000);
+        service.addDocument("doc1", doc1);
+        service.addDocument("doc2", doc2);
 
-        System.out.println(cache.resolve("google.com"));
-
-        cache.getStats();
+        service.analyzeDocument("doc3", doc3);
     }
 }
