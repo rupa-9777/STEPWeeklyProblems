@@ -1,90 +1,128 @@
 import java.util.*;
 
-class ParkingSpot {
-    String plate;
-    long entryTime;
-    boolean occupied;
+class Transaction {
+    int id;
+    int amount;
+    String merchant;
+    long time;
+    String account;
 
-    ParkingSpot() {
-        this.plate = null;
-        this.occupied = false;
+    Transaction(int id, int amount, String merchant, long time, String account) {
+        this.id = id;
+        this.amount = amount;
+        this.merchant = merchant;
+        this.time = time;
+        this.account = account;
     }
 }
 
-class ParkingLot {
-    private ParkingSpot[] table;
-    private int size;
-    private int count = 0;
-    private int totalProbes = 0;
+class TransactionAnalyzer {
 
-    public ParkingLot(int size) {
-        this.size = size;
-        table = new ParkingSpot[size];
-        for (int i = 0; i < size; i++) table[i] = new ParkingSpot();
-    }
+    public List<int[]> twoSum(List<Transaction> list, int target) {
+        HashMap<Integer, Transaction> map = new HashMap<>();
+        List<int[]> result = new ArrayList<>();
 
-    private int hash(String plate) {
-        return Math.abs(plate.hashCode()) % size;
-    }
-
-    public String parkVehicle(String plate) {
-        int index = hash(plate);
-        int probes = 0;
-
-        while (table[index].occupied) {
-            index = (index + 1) % size;
-            probes++;
-        }
-
-        table[index].plate = plate;
-        table[index].entryTime = System.currentTimeMillis();
-        table[index].occupied = true;
-
-        count++;
-        totalProbes += probes;
-
-        return "Assigned spot #" + index + " (" + probes + " probes)";
-    }
-
-    public String exitVehicle(String plate) {
-        int index = hash(plate);
-
-        while (table[index].occupied) {
-            if (plate.equals(table[index].plate)) {
-                long duration = System.currentTimeMillis() - table[index].entryTime;
-                table[index].occupied = false;
-                count--;
-
-                double hours = duration / (1000.0 * 60 * 60);
-                double fee = hours * 5;
-
-                return "Freed spot #" + index + ", Duration: " + String.format("%.2f", hours) + "h, Fee: $" + String.format("%.2f", fee);
+        for (Transaction t : list) {
+            int complement = target - t.amount;
+            if (map.containsKey(complement)) {
+                result.add(new int[]{map.get(complement).id, t.id});
             }
-            index = (index + 1) % size;
+            map.put(t.amount, t);
         }
-
-        return "Vehicle not found";
+        return result;
     }
 
-    public void getStatistics() {
-        double occupancy = (count * 100.0) / size;
-        double avgProbes = count == 0 ? 0 : (totalProbes * 1.0 / count);
+    public List<int[]> twoSumWithTime(List<Transaction> list, int target, long window) {
+        list.sort(Comparator.comparingLong(t -> t.time));
+        List<int[]> result = new ArrayList<>();
+        int left = 0;
 
-        System.out.println("Occupancy: " + String.format("%.2f", occupancy) + "%");
-        System.out.println("Avg Probes: " + String.format("%.2f", avgProbes));
+        for (int right = 0; right < list.size(); right++) {
+            while (list.get(right).time - list.get(left).time > window) {
+                left++;
+            }
+
+            HashMap<Integer, Transaction> map = new HashMap<>();
+            for (int i = left; i < right; i++) {
+                Transaction t = list.get(i);
+                int complement = target - list.get(right).amount;
+                if (map.containsKey(complement)) {
+                    result.add(new int[]{map.get(complement).id, list.get(right).id});
+                }
+                map.put(t.amount, t);
+            }
+        }
+        return result;
+    }
+
+    public List<List<Integer>> kSum(List<Transaction> list, int k, int target) {
+        List<List<Integer>> result = new ArrayList<>();
+        kSumHelper(list, k, target, 0, new ArrayList<>(), result);
+        return result;
+    }
+
+    private void kSumHelper(List<Transaction> list, int k, int target, int start,
+                            List<Integer> current, List<List<Integer>> result) {
+
+        if (k == 0 && target == 0) {
+            result.add(new ArrayList<>(current));
+            return;
+        }
+
+        if (k <= 0 || start >= list.size()) return;
+
+        for (int i = start; i < list.size(); i++) {
+            current.add(list.get(i).id);
+            kSumHelper(list, k - 1, target - list.get(i).amount, i + 1, current, result);
+            current.remove(current.size() - 1);
+        }
+    }
+
+    public void detectDuplicates(List<Transaction> list) {
+        HashMap<String, List<Transaction>> map = new HashMap<>();
+
+        for (Transaction t : list) {
+            String key = t.amount + "-" + t.merchant;
+            map.putIfAbsent(key, new ArrayList<>());
+            map.get(key).add(t);
+        }
+
+        for (String key : map.keySet()) {
+            List<Transaction> group = map.get(key);
+            Set<String> accounts = new HashSet<>();
+
+            for (Transaction t : group) {
+                accounts.add(t.account);
+            }
+
+            if (accounts.size() > 1) {
+                System.out.println("Duplicate: " + key + " Accounts: " + accounts);
+            }
+        }
     }
 }
 
 public class WeeklyProblems {
     public static void main(String[] args) {
-        ParkingLot lot = new ParkingLot(10);
+        List<Transaction> list = new ArrayList<>();
 
-        System.out.println(lot.parkVehicle("ABC-1234"));
-        System.out.println(lot.parkVehicle("ABC-1235"));
-        System.out.println(lot.parkVehicle("XYZ-9999"));
+        list.add(new Transaction(1, 500, "StoreA", 1000, "acc1"));
+        list.add(new Transaction(2, 300, "StoreB", 1100, "acc2"));
+        list.add(new Transaction(3, 200, "StoreC", 1200, "acc3"));
+        list.add(new Transaction(4, 500, "StoreA", 1300, "acc2"));
 
-        System.out.println(lot.exitVehicle("ABC-1234"));
+        TransactionAnalyzer analyzer = new TransactionAnalyzer();
 
-        lot.getStatistics();
+        List<int[]> pairs = analyzer.twoSum(list, 500);
+        for (int[] p : pairs) {
+            System.out.println("Pair: " + p[0] + ", " + p[1]);
+        }
+
+        analyzer.detectDuplicates(list);
+
+        List<List<Integer>> ksum = analyzer.kSum(list, 3, 1000);
+        for (List<Integer> combo : ksum) {
+            System.out.println("KSum: " + combo);
+        }
     }
 }
