@@ -1,116 +1,94 @@
 import java.util.*;
 
-class Video {
+class Transaction {
     String id;
-    String data;
+    double fee;
+    String timestamp;
 
-    Video(String id, String data) {
+    Transaction(String id, double fee, String timestamp) {
         this.id = id;
-        this.data = data;
-    }
-}
-
-class LRUCache<K, V> extends LinkedHashMap<K, V> {
-    private int capacity;
-
-    public LRUCache(int capacity) {
-        super(capacity, 0.75f, true);
-        this.capacity = capacity;
-    }
-
-    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-        return size() > capacity;
-    }
-}
-
-class MultiLevelCache {
-    private LRUCache<String, Video> L1;
-    private LRUCache<String, Video> L2;
-    private HashMap<String, Video> L3;
-    private HashMap<String, Integer> accessCount;
-
-    private int l1Hits = 0, l2Hits = 0, l3Hits = 0;
-
-    public MultiLevelCache() {
-        L1 = new LRUCache<>(10000);
-        L2 = new LRUCache<>(100000);
-        L3 = new HashMap<>();
-        accessCount = new HashMap<>();
-    }
-
-    public void addToDB(Video v) {
-        L3.put(v.id, v);
-    }
-
-    public String getVideo(String id) {
-        long start = System.currentTimeMillis();
-
-        if (L1.containsKey(id)) {
-            l1Hits++;
-            return "L1 HIT: " + id + " (" + (System.currentTimeMillis() - start) + "ms)";
-        }
-
-        if (L2.containsKey(id)) {
-            l2Hits++;
-            Video v = L2.get(id);
-            promoteToL1(id, v);
-            return "L2 HIT → Promoted to L1: " + id;
-        }
-
-        if (L3.containsKey(id)) {
-            l3Hits++;
-            Video v = L3.get(id);
-            L2.put(id, v);
-            accessCount.put(id, 1);
-            return "L3 HIT → Added to L2: " + id;
-        }
-
-        return "Video not found";
-    }
-
-    private void promoteToL1(String id, Video v) {
-        int count = accessCount.getOrDefault(id, 0) + 1;
-        accessCount.put(id, count);
-
-        if (count > 2) {
-            L1.put(id, v);
-        }
-    }
-
-    public void updateVideo(String id, String newData) {
-        Video v = new Video(id, newData);
-        L3.put(id, v);
-        L2.remove(id);
-        L1.remove(id);
-    }
-
-    public void getStats() {
-        int total = l1Hits + l2Hits + l3Hits;
-
-        double l1Rate = total == 0 ? 0 : (l1Hits * 100.0 / total);
-        double l2Rate = total == 0 ? 0 : (l2Hits * 100.0 / total);
-        double l3Rate = total == 0 ? 0 : (l3Hits * 100.0 / total);
-
-        System.out.println("L1 Hit Rate: " + l1Rate + "%");
-        System.out.println("L2 Hit Rate: " + l2Rate + "%");
-        System.out.println("L3 Hit Rate: " + l3Rate + "%");
-        System.out.println("Overall Requests: " + total);
+        this.fee = fee;
+        this.timestamp = timestamp;
     }
 }
 
 public class WeeklyProblems {
+
+    static void bubbleSort(List<Transaction> list) {
+        int n = list.size();
+        int passes = 0;
+        int swaps = 0;
+
+        for (int i = 0; i < n - 1; i++) {
+            boolean swapped = false;
+            passes++;
+            for (int j = 0; j < n - i - 1; j++) {
+                if (list.get(j).fee > list.get(j + 1).fee) {
+                    Collections.swap(list, j, j + 1);
+                    swaps++;
+                    swapped = true;
+                }
+            }
+            if (!swapped) break;
+        }
+
+        System.out.println("BubbleSort (fees):");
+        for (Transaction t : list) {
+            System.out.print(t.id + ":" + t.fee + " ");
+        }
+        System.out.println("\nPasses: " + passes + ", Swaps: " + swaps);
+    }
+
+    static void insertionSort(List<Transaction> list) {
+        for (int i = 1; i < list.size(); i++) {
+            Transaction key = list.get(i);
+            int j = i - 1;
+
+            while (j >= 0 &&
+                    (list.get(j).fee > key.fee ||
+                            (list.get(j).fee == key.fee && list.get(j).timestamp.compareTo(key.timestamp) > 0))) {
+                list.set(j + 1, list.get(j));
+                j--;
+            }
+            list.set(j + 1, key);
+        }
+
+        System.out.println("\nInsertionSort (fee + timestamp):");
+        for (Transaction t : list) {
+            System.out.print(t.id + ":" + t.fee + "@" + t.timestamp + " ");
+        }
+        System.out.println();
+    }
+
+    static void findOutliers(List<Transaction> list) {
+        System.out.println("\nHigh-fee outliers (>50):");
+        boolean found = false;
+
+        for (Transaction t : list) {
+            if (t.fee > 50) {
+                System.out.println(t.id + ":" + t.fee);
+                found = true;
+            }
+        }
+
+        if (!found) {
+            System.out.println("none");
+        }
+    }
+
     public static void main(String[] args) {
-        MultiLevelCache cache = new MultiLevelCache();
 
-        cache.addToDB(new Video("video1", "data1"));
-        cache.addToDB(new Video("video2", "data2"));
+        List<Transaction> transactions = new ArrayList<>();
 
-        System.out.println(cache.getVideo("video1"));
-        System.out.println(cache.getVideo("video1"));
-        System.out.println(cache.getVideo("video1"));
+        transactions.add(new Transaction("id1", 10.5, "10:00"));
+        transactions.add(new Transaction("id2", 25.0, "09:30"));
+        transactions.add(new Transaction("id3", 5.0, "10:15"));
 
-        System.out.println(cache.getVideo("video2"));
+        List<Transaction> bubbleList = new ArrayList<>(transactions);
+        List<Transaction> insertionList = new ArrayList<>(transactions);
 
-        cache.getStats();
+        bubbleSort(bubbleList);
+        insertionSort(insertionList);
+        findOutliers(transactions);
     }
 }
