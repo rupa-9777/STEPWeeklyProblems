@@ -1,30 +1,30 @@
 import java.util.*;
 
-class Transaction {
-    String id;
-    double fee;
-    String timestamp;
+class Client {
+    String name;
+    int riskScore;
+    double accountBalance;
 
-    Transaction(String id, double fee, String timestamp) {
-        this.id = id;
-        this.fee = fee;
-        this.timestamp = timestamp;
+    Client(String name, int riskScore, double accountBalance) {
+        this.name = name;
+        this.riskScore = riskScore;
+        this.accountBalance = accountBalance;
     }
 }
 
 public class WeeklyProblems {
 
-    static void bubbleSort(List<Transaction> list) {
-        int n = list.size();
-        int passes = 0;
+    static void bubbleSort(Client[] arr) {
+        int n = arr.length;
         int swaps = 0;
 
         for (int i = 0; i < n - 1; i++) {
             boolean swapped = false;
-            passes++;
             for (int j = 0; j < n - i - 1; j++) {
-                if (list.get(j).fee > list.get(j + 1).fee) {
-                    Collections.swap(list, j, j + 1);
+                if (arr[j].riskScore > arr[j + 1].riskScore) {
+                    Client temp = arr[j];
+                    arr[j] = arr[j + 1];
+                    arr[j + 1] = temp;
                     swaps++;
                     swapped = true;
                 }
@@ -32,63 +32,55 @@ public class WeeklyProblems {
             if (!swapped) break;
         }
 
-        System.out.println("BubbleSort (fees):");
-        for (Transaction t : list) {
-            System.out.print(t.id + ":" + t.fee + " ");
+        System.out.println("Bubble Sort (Ascending Risk):");
+        for (Client c : arr) {
+            System.out.print(c.name + ":" + c.riskScore + " ");
         }
-        System.out.println("\nPasses: " + passes + ", Swaps: " + swaps);
+        System.out.println("\nSwaps: " + swaps);
     }
 
-    static void insertionSort(List<Transaction> list) {
-        for (int i = 1; i < list.size(); i++) {
-            Transaction key = list.get(i);
+    static void insertionSort(Client[] arr) {
+        for (int i = 1; i < arr.length; i++) {
+            Client key = arr[i];
             int j = i - 1;
 
             while (j >= 0 &&
-                    (list.get(j).fee > key.fee ||
-                            (list.get(j).fee == key.fee && list.get(j).timestamp.compareTo(key.timestamp) > 0))) {
-                list.set(j + 1, list.get(j));
+                    (arr[j].riskScore < key.riskScore ||
+                            (arr[j].riskScore == key.riskScore &&
+                                    arr[j].accountBalance < key.accountBalance))) {
+                arr[j + 1] = arr[j];
                 j--;
             }
-            list.set(j + 1, key);
+            arr[j + 1] = key;
         }
 
-        System.out.println("\nInsertionSort (fee + timestamp):");
-        for (Transaction t : list) {
-            System.out.print(t.id + ":" + t.fee + "@" + t.timestamp + " ");
+        System.out.println("\nInsertion Sort (Descending Risk + Balance):");
+        for (Client c : arr) {
+            System.out.print(c.name + ":" + c.riskScore + " ");
         }
         System.out.println();
     }
 
-    static void findOutliers(List<Transaction> list) {
-        System.out.println("\nHigh-fee outliers (>50):");
-        boolean found = false;
-
-        for (Transaction t : list) {
-            if (t.fee > 50) {
-                System.out.println(t.id + ":" + t.fee);
-                found = true;
-            }
-        }
-
-        if (!found) {
-            System.out.println("none");
+    static void topRisks(Client[] arr, int k) {
+        System.out.println("\nTop " + k + " Highest Risk Clients:");
+        for (int i = 0; i < Math.min(k, arr.length); i++) {
+            System.out.println(arr[i].name + "(" + arr[i].riskScore + ")");
         }
     }
 
     public static void main(String[] args) {
 
-        List<Transaction> transactions = new ArrayList<>();
+        Client[] clients = {
+                new Client("clientC", 80, 5000),
+                new Client("clientA", 20, 2000),
+                new Client("clientB", 50, 3000)
+        };
 
-        transactions.add(new Transaction("id1", 10.5, "10:00"));
-        transactions.add(new Transaction("id2", 25.0, "09:30"));
-        transactions.add(new Transaction("id3", 5.0, "10:15"));
+        Client[] bubbleArr = Arrays.copyOf(clients, clients.length);
+        Client[] insertionArr = Arrays.copyOf(clients, clients.length);
 
-        List<Transaction> bubbleList = new ArrayList<>(transactions);
-        List<Transaction> insertionList = new ArrayList<>(transactions);
-
-        bubbleSort(bubbleList);
-        insertionSort(insertionList);
-        findOutliers(transactions);
+        bubbleSort(bubbleArr);
+        insertionSort(insertionArr);
+        topRisks(insertionArr, 3);
     }
 }
