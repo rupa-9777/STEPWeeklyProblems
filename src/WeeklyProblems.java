@@ -1,115 +1,79 @@
 import java.util.*;
 
-class Asset {
-    String name;
-    double returnRate;
-    double volatility;
-
-    Asset(String name, double returnRate, double volatility) {
-        this.name = name;
-        this.returnRate = returnRate;
-        this.volatility = volatility;
-    }
-}
-
 public class WeeklyProblems {
 
-    static void mergeSort(Asset[] arr, int left, int right) {
-        if (left < right) {
-            int mid = (left + right) / 2;
-            mergeSort(arr, left, mid);
-            mergeSort(arr, mid + 1, right);
-            merge(arr, left, mid, right);
-        }
-    }
+    static void linearSearch(String[] arr, String target) {
+        int first = -1, last = -1;
+        int comparisons = 0;
 
-    static void merge(Asset[] arr, int left, int mid, int right) {
-        Asset[] temp = new Asset[right - left + 1];
-
-        int i = left, j = mid + 1, k = 0;
-
-        while (i <= mid && j <= right) {
-            if (arr[i].returnRate <= arr[j].returnRate) {
-                temp[k++] = arr[i++];
-            } else {
-                temp[k++] = arr[j++];
+        for (int i = 0; i < arr.length; i++) {
+            comparisons++;
+            if (arr[i].equals(target)) {
+                if (first == -1) first = i;
+                last = i;
             }
         }
 
-        while (i <= mid) temp[k++] = arr[i++];
-        while (j <= right) temp[k++] = arr[j++];
+        System.out.println("Linear Search:");
+        System.out.println("First Occurrence: " + first);
+        System.out.println("Last Occurrence: " + last);
+        System.out.println("Comparisons: " + comparisons);
+    }
 
-        for (int x = 0; x < temp.length; x++) {
-            arr[left + x] = temp[x];
+    static int binarySearch(String[] arr, String target, Counter counter) {
+        int low = 0, high = arr.length - 1;
+
+        while (low <= high) {
+            counter.count++;
+            int mid = (low + high) / 2;
+
+            if (arr[mid].equals(target)) return mid;
+            else if (arr[mid].compareTo(target) < 0) low = mid + 1;
+            else high = mid - 1;
         }
+        return -1;
     }
 
-    static void quickSort(Asset[] arr, int low, int high) {
-        if (low < high) {
-            int pi = partition(arr, low, high);
-            quickSort(arr, low, pi - 1);
-            quickSort(arr, pi + 1, high);
-        }
-    }
+    static int countOccurrences(String[] arr, String target, Counter counter) {
+        int index = binarySearch(arr, target, counter);
+        if (index == -1) return 0;
 
-    static int medianOfThree(Asset[] arr, int low, int high) {
-        int mid = (low + high) / 2;
+        int count = 1;
 
-        if (arr[low].returnRate > arr[mid].returnRate) swap(arr, low, mid);
-        if (arr[low].returnRate > arr[high].returnRate) swap(arr, low, high);
-        if (arr[mid].returnRate > arr[high].returnRate) swap(arr, mid, high);
-
-        swap(arr, mid, high);
-        return high;
-    }
-
-    static int partition(Asset[] arr, int low, int high) {
-        int pivotIndex = medianOfThree(arr, low, high);
-        double pivot = arr[pivotIndex].returnRate;
-
-        int i = low - 1;
-
-        for (int j = low; j < high; j++) {
-            if (arr[j].returnRate > pivot ||
-                    (arr[j].returnRate == pivot && arr[j].volatility < arr[pivotIndex].volatility)) {
-                i++;
-                swap(arr, i, j);
-            }
+        int left = index - 1;
+        while (left >= 0 && arr[left].equals(target)) {
+            count++;
+            left--;
         }
 
-        swap(arr, i + 1, high);
-        return i + 1;
+        int right = index + 1;
+        while (right < arr.length && arr[right].equals(target)) {
+            count++;
+            right++;
+        }
+
+        return count;
     }
 
-    static void swap(Asset[] arr, int i, int j) {
-        Asset temp = arr[i];
-        arr[i] = arr[j];
-        arr[j] = temp;
+    static class Counter {
+        int count = 0;
     }
 
     public static void main(String[] args) {
 
-        Asset[] assets = {
-                new Asset("AAPL", 12.0, 5.0),
-                new Asset("TSLA", 8.0, 9.0),
-                new Asset("GOOG", 15.0, 4.0)
-        };
+        String[] logs = {"accB", "accA", "accB", "accC"};
 
-        Asset[] mergeArr = Arrays.copyOf(assets, assets.length);
-        Asset[] quickArr = Arrays.copyOf(assets, assets.length);
+        linearSearch(logs, "accB");
 
-        mergeSort(mergeArr, 0, mergeArr.length - 1);
+        Arrays.sort(logs);
 
-        System.out.println("Merge Sort (Ascending Return):");
-        for (Asset a : mergeArr) {
-            System.out.print(a.name + ":" + a.returnRate + "% ");
-        }
+        Counter counter = new Counter();
+        int index = binarySearch(logs, "accB", counter);
+        int count = countOccurrences(logs, "accB", counter);
 
-        quickSort(quickArr, 0, quickArr.length - 1);
-
-        System.out.println("\n\nQuick Sort (Descending Return + Low Volatility):");
-        for (Asset a : quickArr) {
-            System.out.print(a.name + ":" + a.returnRate + "% ");
-        }
+        System.out.println("\nBinary Search:");
+        System.out.println("Index: " + index);
+        System.out.println("Count: " + count);
+        System.out.println("Comparisons: " + counter.count);
     }
 }
