@@ -10,7 +10,7 @@ class Trade {
     }
 }
 
-public class HistoricalTradeVolumeAnalysis.java {
+public class HistoricalTradeVolumeAnalysis {
 
     static void mergeSort(Trade[] arr, int left, int right) {
         if (left < right) {
