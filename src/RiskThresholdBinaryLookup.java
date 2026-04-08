@@ -1,6 +1,6 @@
 import java.util.*;
 
-public class WeeklyProblems {
+public class RiskThresholdBinaryLookup {
 
     static void linearSearch(int[] arr, int target) {
         int comparisons = 0;
